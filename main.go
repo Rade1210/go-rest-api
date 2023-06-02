@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"strconv"
+
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/mux"
 )
@@ -18,8 +20,9 @@ type Stu struct {
 
 func main() {
 	r := mux.NewRouter()
-	r.HandleFunc("/studentInfo", getStudent).Methods("GET")
-	r.HandleFunc("/addStudent", setStudent).Methods("POST")
+	r.HandleFunc("/getStudent", getStudent).Methods("GET")
+	r.HandleFunc("/setStudent", setStudent).Methods("POST")
+	r.HandleFunc("/updateStudent/{id}", updateStudent).Methods("PUT")
 	http.ListenAndServe(":8080", r)
 }
 
@@ -40,8 +43,8 @@ func getStudent(w http.ResponseWriter, r *http.Request) {
 
 	for res.Next() {
 		var stu Stu
-		err := res.Scan(&stu.Id, &stu.Name)
-		if err != nil {
+		row := res.Scan(&stu.Id, &stu.Name)
+		if row != nil {
 			http.Error(w, "Failed to scan row from the database", http.StatusInternalServerError)
 			return
 		}
@@ -72,6 +75,7 @@ func setStudent(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to connect to the database", http.StatusInternalServerError)
 		return
 	}
+
 	defer db.Close()
 
 	_, err = db.Exec("INSERT INTO student(name) VALUES(?)", stu.Name)
@@ -81,4 +85,27 @@ func setStudent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Fprintln(w, stu.Name+" has been added to the table")
+}
+
+func updateStudent(w http.ResponseWriter, r *http.Request) {
+	data, _ := ioutil.ReadAll(r.Body)
+	var stu Stu
+	json.Unmarshal(data, &stu)
+	id := mux.Vars(r)
+	db, err := sql.Open("mysql", "root:875254Broj#@tcp(127.0.0.1:3406)/gorest")
+
+	if err != nil {
+		http.Error(w, "Failed to connect to the database", http.StatusInternalServerError)
+		return
+	}
+
+	res, err := db.Query("update student set name= '" + stu.Name + "' where id = " + id["id"])
+	if err != nil {
+		http.Error(w, "Failed to connect to the database", http.StatusInternalServerError)
+		return
+	}
+
+	defer res.Close()
+
+	fmt.Fprintln(w, "data is updated")
 }
