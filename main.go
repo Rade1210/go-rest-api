@@ -5,10 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"strconv"
-
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/mux"
 )
@@ -23,6 +21,7 @@ func main() {
 	r.HandleFunc("/getStudent", getStudent).Methods("GET")
 	r.HandleFunc("/setStudent", setStudent).Methods("POST")
 	r.HandleFunc("/updateStudent/{id}", updateStudent).Methods("PUT")
+	r.HandleFunc("/deleteStudent/{id}", deleteStudent).Methods("DELETE")
 	http.ListenAndServe(":8080", r)
 }
 
@@ -88,12 +87,13 @@ func setStudent(w http.ResponseWriter, r *http.Request) {
 }
 
 func updateStudent(w http.ResponseWriter, r *http.Request) {
-	data, _ := ioutil.ReadAll(r.Body)
+	data, _ := io.ReadAll(r.Body)
 	var stu Stu
 	json.Unmarshal(data, &stu)
 	id := mux.Vars(r)
-	db, err := sql.Open("mysql", "root:875254Broj#@tcp(127.0.0.1:3406)/gorest")
 
+	db, err := sql.Open("mysql", "root:875254Broj#@tcp(127.0.0.1:3406)/gorest")
+ 
 	if err != nil {
 		http.Error(w, "Failed to connect to the database", http.StatusInternalServerError)
 		return
@@ -108,4 +108,29 @@ func updateStudent(w http.ResponseWriter, r *http.Request) {
 	defer res.Close()
 
 	fmt.Fprintln(w, "data is updated")
+}
+
+func deleteStudent(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)
+	fmt.Fprintln(w, id["id"])
+	var id_ = id["id"]
+	db, err := sql.Open("mysql", "root:875254Broj#@tcp(127.0.0.1:3406)/gorest")
+ 
+	if err != nil {
+		http.Error(w, "Failed to connect to the database", http.StatusInternalServerError)
+		return
+	}
+
+	defer db.Close()
+
+	res, err := db.Query("delete from student where id = " + id_)
+	if err != nil {
+		http.Error(w, "Can't delete student from database", http.StatusInternalServerError)
+		return
+	}
+
+	defer res.Close()
+
+	fmt.Fprintln(w, "values are deleted")
+
 }
